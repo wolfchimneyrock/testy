@@ -1,0 +1,10 @@
+server:
+    host: 192.168.1.10
+    cmdline: "LD_LIBRARY_PATH=/usr/local/lib daap"
+    ready:   "Scanned"
+    
+clients:
+    scan: yes
+    skip_servers: yes
+    cmdline: "daap-client -h 192.168.1.10 -c 64"
+

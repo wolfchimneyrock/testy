@@ -89,9 +89,13 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
     int i;
     size_t cmdlen    = 0;
     size_t rdylen    = 0;
+    size_t durlen    = 0;
+    size_t stoplen   = 0;
     char  *cmdtag    = NULL;
     char  *rdytag    = NULL;
-    
+    char  *durtag    = NULL;
+    char  *stoptag   = NULL;
+
     jsmn_parser p;
     jsmntok_t tokens[TOKENSIZE];
 
@@ -112,7 +116,7 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
     for (i = 1; i < res; i++) {
         // loop over all children of the root object
         
-        if (json_key_eq(body, &tokens[i], "cmdline")) {
+        if (json_key_eq(body, &tokens[i], "Cmdline")) {
             // what follows should be the execution string
             if (i + 1 == res) {
                 return NULL;
@@ -121,16 +125,33 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
             cmdtag = body + tokens[++i].start;
             cmdlen = (size_t)(tokens[i].end - tokens[i].start);
             cmdtag[cmdlen] = '\0';
-            syslog(LOG_INFO, "got command tag: '%s'", cmdtag);
+            syslog(LOG_INFO, "got Cmdline tag: '%s'", cmdtag);
         }
 
-        else if (json_key_eq(body, &tokens[i], "ready")) {
+        else if (json_key_eq(body, &tokens[i], "ReadyMessage")) {
             if (i + 1 == res) return NULL;
             rdytag = body + tokens[++i].start;
             rdylen = (size_t)(tokens[i].end - tokens[i].start);
             rdytag[rdylen] = '\0';
-            syslog(LOG_INFO, "got ready tag: '%s'", rdytag);
+            syslog(LOG_INFO, "got ReadyMessage tag: '%s'", rdytag);
         }
+
+        else if (json_key_eq(body, &tokens[i], "Duration")) {
+            if (i + 1 == res) return NULL;
+            durtag = body + tokens[++i].start;
+            durlen = (size_t)(tokens[i].end - tokens[i].start);
+            durtag[durlen] = '\0';
+            syslog(LOG_INFO, "got Duration tag: '%s'", durtag);
+        }
+        
+        else if (json_key_eq(body, &tokens[i], "StopSignal")) {
+            if (i + 1 == res) return NULL;
+            stoptag = body + tokens[++i].start;
+            stoplen = (size_t)(tokens[i].end - tokens[i].start);
+            stoptag[stoplen] = '\0';
+            syslog(LOG_INFO, "got StopSignal tag: '%s'", durtag);
+        }
+
     }
 
     if (cmdtag && *cmdtag) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, socket, requests, grequests, yaml, json
+import sys, socket, requests, grequests, yaml, json, itertools
 from optparse import OptionParser
 
 PORT = 8111
@@ -27,6 +27,8 @@ def scan_subnet(ip):
     responses = zip(all_hosts, grequests.map(requests))
     return [z[0] for z in responses if z[1] is not None  and z[1].status_code == 200]
     
+
+
 parser = OptionParser()
 parser.add_option("-f", "--file", dest="filename", help="read configuration from FILE", metavar="FILE")
 
@@ -35,19 +37,39 @@ parser.add_option("-f", "--file", dest="filename", help="read configuration from
 if options.filename is not None:
     stream = open(options.filename, "r")
 else:
-    print "Using stdin.  type ^D twice to end configuration input."
     stream = sys.stdin
 
 try:
     config = yaml.load(stream)
 except yaml.YAMLError as exc:
     print(exc)
-print config
-s = json.dumps(config['server'], default=lambda o: o.__dict__)
 
-c = json.dumps(config['clients'], default=lambda o: o.__dict__)
-print s
-print c
+var_vals = []
+var_keys = []
+
+for k, v in config['Variables'].iteritems():
+    if 'Values' in v:
+        if isinstance(v['Values'], dict):
+            var_vals.append(v['Values'].values())
+            var_keys.append(k)
+        elif isinstance(v['Values'], list):
+            var_vals.append(v['Values'])
+            var_keys.append(k)
+
+var_perms = []
+
+for perm in itertools.product(*var_vals):
+    var_perms.append(dict(zip(var_keys, perm)))
+
+server_cmd = config['Server']['CmdlineTemplate']
+client_cmd = config['Clients']['CmdlineTemplate']
+
+for perm in var_perms:
+    print server_cmd.format(**perm)
+    print client_cmd.format(**perm)
+    print ""
+
+
 ip = get_my_address()
 res = scan_subnet(ip)
 print res

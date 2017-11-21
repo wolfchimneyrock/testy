@@ -22,17 +22,19 @@
 
 #define META_SCRATCH_SIZE    4096
 #define PATH_SCRATCH_SIZE    4096 
-#define CLIENT_BUFSIZE       6
+#define CLIENT_BUFSIZE       600
 #define BUFSIZE              256
 #define TOKENSIZE            64
 #define PIPEBUF_SIZE         4096 // 4k is largest atomic read size
 ///////////////////////////////////////////////////////////////////////////////
 
 struct _client {
+    int           id;
     int           pid;
     int           messages_sent;
     int           pipe; // pipe file descriptor
     int           ready;
+    int           stopsig;
     ev_t         *event;
     evbuf_t      *buffer;
     void         *req;
@@ -57,10 +59,22 @@ int clients_add(CLIENT *c) {
 
         result = client_count++;
         clients[result] = c;
+        c->id = result;
         
     pthread_mutex_unlock(&clients_mutex);
     
     return result;
+}
+
+int client_stop(CLIENT *c) {
+    if (c == NULL) return -1;
+    syslog(LOG_INFO, "sending signal %d to pid %d", c->stopsig, c->pid);
+
+    int ret = kill(c->pid, c->stopsig);
+    waitpid(c->pid, NULL, 0); 
+    clients[c->id] = NULL;
+    //free(c);
+    return ret;
 }
 
 CLIENT *clients_get(int clientid) {
@@ -100,6 +114,7 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
     jsmntok_t tokens[TOKENSIZE];
 
     jsmn_init(&p);
+    syslog(LOG_INFO, "body: %s", body);
     res = jsmn_parse(&p, body, body_len, tokens, 
             sizeof(tokens) / sizeof(tokens[0]));
     LOGGER(LOG_INFO, "body contains %d JSON objects...", res);
@@ -107,13 +122,13 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
         // error parsing JSON
         return NULL;
     }
-
+/*
     if (res < 1 || tokens[0].type != JSMN_OBJECT) {
         // expected root-level object, but not found
         return NULL;
     }
-
-    for (i = 1; i < res; i++) {
+*/
+    for (i = 0; i < res; i++) {
         // loop over all children of the root object
         
         if (json_key_eq(body, &tokens[i], "Cmdline")) {
@@ -156,14 +171,14 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
 
     if (cmdtag && *cmdtag) {
         // we need the command key to be meaningful
-        return create_client(cmdtag, rdytag, base);
+        return create_client(cmdtag, rdytag, stoptag, base);
     }
     return NULL;
 
 }
 
 
-CLIENT *create_client(char *command, const char *ready_message, void *base) {
+CLIENT *create_client(char *command, const char *ready_message, const char *stop_signal, void *base) {
 // command is mutated by tokenize() to null-terminate tokens
     LOGGER(LOG_INFO, "create_client()\n");
     int p[2];
@@ -176,6 +191,7 @@ CLIENT *create_client(char *command, const char *ready_message, void *base) {
     int childdup = STDERR_FILENO; // we want to read from pipe
 
     int child;
+    int stopsig;
 
     if ((child = fork()) == 0) {  
         // we are the child, try to execute
@@ -223,6 +239,13 @@ CLIENT *create_client(char *command, const char *ready_message, void *base) {
             c->ready_message = NULL;
             c->ready = 1;
         }
+        stopsig = atoi(stop_signal);
+        if (stopsig > 0) {
+            c->stopsig = stopsig;
+        } else {
+            syslog(LOG_INFO, "using default stop signal 9.");
+            c->stopsig = 9;
+        }
         return c;
     }
 }
@@ -246,7 +269,7 @@ void client_fifo_read(int fd, short event, void *arg) {
                     c->ready = 1;
                     LOGGER(LOG_INFO, "found ready message!");
                     evhtp_send_reply(c->req, EVHTP_RES_CREATED);
-                }
+                } 
                 free(line);
             } while (!c->ready && size > 0); 
         }

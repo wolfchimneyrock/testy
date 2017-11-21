@@ -2,12 +2,12 @@
 #define __CONFIG_H__
 
 typedef struct config_t {
-    int   port;
-    int   threads;
-    int   fullscan;
-    int   timeout;
-    int   buffercap;
-    int   verbose;
+    long   port;
+    long   threads;
+    long   fullscan;
+    long   timeout;
+    long   buffercap;
+    long   verbose;
     char *name;
     char *root;
     char *dbfile;

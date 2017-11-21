@@ -9,6 +9,7 @@
 #include <event2/util.h>
 #include <evhtp/evhtp.h>
 #include <syslog.h>
+#include "system.h"
 #include "config.h"
 #include "http.h"
 #include "util.h"
@@ -41,7 +42,7 @@ void log_request(evhtp_request_t *req, void *a) {
     char ipaddr[16];
     printable_ipaddress((struct sockaddr_in *)req->conn->saddr, ipaddr);
     const char *ua  = evhtp_kv_find(req->headers_in, "User-Agent");
-    syslog(LOG_INFO, "%s [%s] requested %s: %s%s\n", 
+    LOGGER(LOG_INFO, "%s [%s] requested %s: %s%s", 
             ipaddr, ua, (char *)a, req->uri->path->path,
             req->uri->path->file);
     evhtp_kv_t *kv;
@@ -56,13 +57,13 @@ void app_init_thread(evhtp_t *htp, evthr_t *thread, void *arg) {
     aux->config = parent->config;
 // to be retrieved by request callbacks that need
     evthr_set_aux(thread, aux); 
-    syslog(LOG_INFO, "evhtp thread listening for connections.\n");
+    LOGGER(LOG_INFO, "evhtp thread listening for connections.");
 }
 
 void app_term_thread(evhtp_t *htp, evthr_t *thread, void *arg) {
     app *aux = (app *)evthr_get_aux(thread);
     free(aux);
-    syslog(LOG_INFO, "evhtp thread terminated.\n");
+    LOGGER(LOG_INFO, "evhtp thread terminated.");
 }
 
 void add_headers_out(evhtp_request_t *req) {
@@ -80,14 +81,15 @@ void add_headers_out(evhtp_request_t *req) {
 void server_xmlrpc(evhtp_request_t *req, void *a) {
     const char *str = a;
     log_request(req, a);
-    evhtp_send_reply(req, EVHTP_RES_OK);
-    syslog(LOG_INFO, "received request %s: %s - %s\n", 
+    LOGGER(LOG_INFO, "received request %s: %s - %s", 
             (char *)a, req->uri->path->path, req->uri->path->file); 
+    evhtp_send_reply(req, EVHTP_RES_OK);
 }
 
 
 
 void res_agent_clients(evhtp_request_t *req, void *a) {
+	LOGGER(LOG_INFO, "res_agent_clients()");
     log_request(req, a);
     add_headers_out(req);
     ADD_DATE_HEADER("Date");
@@ -117,7 +119,7 @@ void res_agent_clients(evhtp_request_t *req, void *a) {
 
             break;
         case htp_method_POST: {
-            syslog(LOG_INFO, "handling POST request\n"); 
+            LOGGER(LOG_INFO, "handling POST request"); 
             // create a new test
             // the test parameters should be in the body of the request
             // we will send a response only after we get ready confirmation 
@@ -154,7 +156,7 @@ void res_agent_clients(evhtp_request_t *req, void *a) {
                 break;
             }
 
-            syslog(LOG_INFO, "created client task %d\n", clientid);
+            LOGGER(LOG_INFO, "created client task %d", clientid);
             // we respond with a Location header
             // and 201 CREATED code
             char location[BODYSIZE];
@@ -172,6 +174,7 @@ void res_agent_clients(evhtp_request_t *req, void *a) {
 }
 
 void res_agent_specific_client(evhtp_request_t *req, void *a) {
+	LOGGER(LOG_INFO, "res_agent_specific_client()");
     log_request(req, a);
     add_headers_out(req);
     ADD_DATE_HEADER("Date");
@@ -185,7 +188,7 @@ void res_agent_specific_client(evhtp_request_t *req, void *a) {
 
     if (c) {
         // successfully got it
-        syslog(LOG_INFO, "found client object: %d", id);
+        LOGGER(LOG_INFO, "found client object: %d", id);
 
     } else {
         evhtp_send_reply(req, EVHTP_RES_NOTFOUND);
@@ -198,7 +201,7 @@ void res_agent_specific_client(evhtp_request_t *req, void *a) {
     // DELETE - delete the test
     switch(req->method) {
         case htp_method_GET: {
-            syslog(LOG_INFO, "handling GET request");
+            LOGGER(LOG_INFO, "handling GET request");
             // we want to read from the pipe and respond with contents
             int      messageid = 0;
             messageid = read_client_pipe_lines(req->buffer_out, c);  
@@ -225,7 +228,7 @@ void res_agent_specific_client(evhtp_request_t *req, void *a) {
 }
 
 void register_callbacks(evhtp_t *evhtp) {
-    syslog(LOG_INFO, "registering callbacks...\n");
+    LOGGER(LOG_INFO, "registering callbacks...");
 
 // regex callbacks must be registered in correct order: most specific first
     evhtp_set_regex_cb(evhtp, 

@@ -25,7 +25,7 @@ static void main_cleanup(void *arg) {
     evhtp_unbind_socket(parent->htp);
     evhtp_free(parent->htp);
     event_base_free(parent->base);
-    syslog(LOG_INFO, "main thread terminated.\n");
+    LOGGER(LOG_INFO, "main thread terminated.");
 }
 
 static const char option_string[]  = "DVc:d:s:p:t:T:B:";
@@ -50,11 +50,10 @@ static struct option long_options[] = {
       }                                                                 \
 }
 
+config_t conf;
 
 int main (int argc, char *argv[]) {
-    int flag_daemonize = 0;
     char config_file[256] = "daapper.conf";
-    static config_t conf;
     char hostname[255];
     gethostname(hostname, 255);
 
@@ -154,9 +153,9 @@ int main (int argc, char *argv[]) {
 // the rest of this is boilerplate LIBEVENT / EVHTP for a multi 
 // threaded, thread-pooling HTTP server.  Application specific 
 // callbacks are located in http.c
-    syslog(LOG_INFO, "initialize event base...\n");
+    LOGGER(LOG_INFO, "initialize event base...");
     parent.base = event_base_new();
-    syslog(LOG_INFO, "initialize evhtp base...\n");
+    LOGGER(LOG_INFO, "initialize evhtp base...");
     parent.htp  = evhtp_new(parent.base, NULL);
     parent.config = &conf;
     register_callbacks(parent.htp);
@@ -165,15 +164,15 @@ int main (int argc, char *argv[]) {
     int socket = 0;
     if (argc > 1) socket = atoi(argv[1]);
     if (socket == 0) socket = conf.port;
-    syslog(LOG_INFO, "binding socket %d...\n", socket);
+    LOGGER(LOG_INFO, "binding socket %d...", socket);
     if ((res = evhtp_bind_socket(parent.htp, "0.0.0.0", socket, 2048)) 
             == -1) {
-        syslog(LOG_EMERG, "failed to bind socket error %d.\n", errno);
+        LOGGER(LOG_EMERG, "failed to bind socket error %d.", errno);
         evhtp_free(parent.htp);
         event_base_free(parent.base);
         exit(EXIT_FAILURE);
     }
-    syslog(LOG_INFO, "event loop...\n");
+    LOGGER(LOG_INFO, "event loop...");
     event_base_loop(parent.base, 0);
     pthread_cleanup_pop(cleanup_pop_val);
     return EXIT_SUCCESS;

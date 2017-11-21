@@ -217,7 +217,12 @@ void res_agent_specific_client(evhtp_request_t *req, void *a) {
         case htp_method_PUT:
             break;
         case htp_method_DELETE:
-
+            syslog(LOG_INFO, "handling DELETE request");
+            int ret = client_stop(c);
+            if (ret == 0)
+                evhtp_send_reply(req, EVHTP_RES_OK);
+            else
+                evhtp_send_reply(req, EVHTP_RES_NOTFOUND);
             break;
 
         

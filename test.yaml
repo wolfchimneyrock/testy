@@ -13,19 +13,19 @@ Variables:
     FileCache:
         Values:
             UseCache:   ''
-            NoCache:    '-C'
+            NoCache:    '-C -1'
     
 
 Server:
-    Host:               192.168.1.10
-    CmdlineTemplate:    "LD_LIBRARY_PATH=/usr/local/lib daap -X -t {ServerThreads} -y {BufferType} {FileCache}"
-    ReadyMessage:       "Scanned"
+    Host:               "192.168.1.29"
+    CmdlineTemplate:    "daap -X -t {ServerThreads} -y {BufferType} {FileCache}"
+    ReadyMessage:       "*** SCANNED"
     StopSignal:         15
 
 Clients:
     Scan:               yes
     SkipServers:        yes
-    CmdlineTemplate:    "daap-client -h 192.168.1.10 -c {SimulatedClients}"
+    CmdlineTemplate:    "daap-client -h 192.168.1.29 -c {SimulatedClients}"
     StopSignal:         15
 
 Test:

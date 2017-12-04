@@ -13,6 +13,7 @@
 #include <grp.h>
 #include "system.h"
 #include "config.h"
+#include "client.h"
 
 #define SUPERUSER (uid_t)0
 int flag_daemonize = 0;
@@ -25,7 +26,7 @@ volatile pthread_t main_pid, signal_pid,
 void staylocal(config_t *conf, char **argv) {
     int ret;
     // don't daemonize - but write pid file and enable logging to stdout
-    snprintf(pidfile_str, 256, "/tmp/%u-testy.pid", conf->port);
+    snprintf(pidfile_str, 256, "/tmp/%lu-testy.pid", conf->port);
    
     pidfile_fd = open(pidfile_str, O_RDONLY);
     if (pidfile_fd > 0) {
@@ -62,7 +63,7 @@ void staylocal(config_t *conf, char **argv) {
 void daemonize(config_t *conf, char **argv) {
     pid_t pid, sid;
     int ret;
-    snprintf(pidfile_str, 256, "/tmp/%u-testy.pid", conf->port);
+    snprintf(pidfile_str, 256, "/tmp/%lu-testy.pid", conf->port);
     pidfile_fd = open(pidfile_str, O_RDONLY);
     if (pidfile_fd > 0) { 
 // a pidfile exists already
@@ -141,8 +142,16 @@ void cleanup() {
     closelog();
 }
 
-static void handle_signal(int sig) {
-    LOGGER(LOG_INFO, "received signal %d - %s\n", sig, strsignal(sig));
+static void handle_signal(int sig, siginfo_t *si, void *context) {
+    LOGGER(LOG_INFO, "received signal %d - %s from pid %d\n", sig, strsignal(sig), si->si_pid);
+    if (sig == SIGCHLD) {
+        // child terminated
+        LOGGER(LOG_INFO, "child pid terminated, cleaning up");
+        CLIENT *c = get_client_by_pid(si->si_pid);
+        if (c) {
+            client_stop(c);
+        }
+    }
     if (sig == SIGKILL || sig == SIGTERM || sig == SIGSTOP || sig == SIGINT) {
         LOGGER(LOG_INFO, "terminating...\n");
         // cancelling the signal thread will cause a graceful shutdown
@@ -174,7 +183,8 @@ static void *signal_thread(void *arg) {
     pthread_detach(signal_pid);
     pthread_cleanup_push(signal_cleanup, NULL);
     struct sigaction act = {0};
-    act.sa_handler = handle_signal;
+    act.sa_sigaction = handle_signal;
+    act.sa_flags = SA_SIGINFO;
     for (int i = 0; i < 32; i++)
         sigaction(i, &act, NULL);
     sigset_t mask;

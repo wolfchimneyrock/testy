@@ -1,8 +1,10 @@
 #ifndef __CLIENT_H__
 #define __CLIENT_H__
-
+#include <event2/util.h>
+#include <evhtp/evhtp.h>
 typedef struct _client CLIENT;
 
+CLIENT * get_client_by_pid(int pid);
 int      clients_add(CLIENT *c);
 int      client_stop(CLIENT *c);
 CLIENT * clients_get(int clientid);

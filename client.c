@@ -48,6 +48,14 @@ static CLIENT          *clients[CLIENT_BUFSIZE];
 static pthread_mutex_t  clients_mutex            = PTHREAD_MUTEX_INITIALIZER;
 static int              client_count             = 0;
 
+CLIENT *get_client_by_pid(int pid) {
+    for (int i = 0; i < client_count; i++) {
+        if (clients[i]->pid == pid)
+            return clients[i];
+    }
+    return NULL;
+}
+
 int clients_add(CLIENT *c) {
     if (c == NULL) return -1;
     if (client_count == CLIENT_BUFSIZE) return -1;
@@ -269,7 +277,7 @@ void client_fifo_read(int fd, short event, void *arg) {
     do {
         evbuffer_expand(c->buffer, PIPEBUF_SIZE);
         count = evbuffer_read(c->buffer, fd, PIPEBUF_SIZE); 
-        if (!c->ready) {
+        if (!c->ready && !c->deleted) {
             // we want to search for ready_message
             size_t size = 0;
             do {
@@ -282,7 +290,7 @@ void client_fifo_read(int fd, short event, void *arg) {
                     evhtp_send_reply(c->req, EVHTP_RES_CREATED);
                 } 
                 free(line);
-            } while (!c->ready && size > 0); 
+            } while (!c->ready && !c->deleted && size > 0); 
         }
         
         //syslog(LOG_INFO, "client_fifo_read() %d\n", count);

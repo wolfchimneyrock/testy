@@ -152,10 +152,15 @@ if __name__ == "__main__":
                 tick_res = grequests.map(tick_req)
                 remaining = duration - time.time() + start_time
             
+            # clients are done, delete them
+            del_req = (grequests.delete(h) for h in client_loc)
+            del_res = grequests.map(del_req)
+
             # after clients are done, we have to shutdown server before
             # going on to the next permutation
-            delete_response = requests.delete(make_request_host(server_host, server_response.headers['Location']), timeout=3600)
-            if delete_response.status_code != 200:
+
+            delete_server_response = requests.delete(make_request_host(server_host, server_response.headers['Location']), timeout=3600)
+            if delete_server_response.status_code != 200:
                 print "Error deleting server instance.  Quitting"
                 sys.exit(1)
             #time.sleep(2)

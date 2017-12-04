@@ -88,6 +88,7 @@ void server_xmlrpc(evhtp_request_t *req, void *a) {
 
 
 void res_agent_clients(evhtp_request_t *req, void *a) {
+        syslog(LOG_INFO, "res_agent_clients()\n"); 
     log_request(req, a);
     add_headers_out(req);
     ADD_DATE_HEADER("Date");
@@ -105,6 +106,7 @@ void res_agent_clients(evhtp_request_t *req, void *a) {
     switch(req->method) {
         case htp_method_GET: 
             
+            syslog(LOG_INFO, "handling GET request\n"); 
             // return OK status
             // lets a scanner know we're accepting connections
             
@@ -172,6 +174,7 @@ void res_agent_clients(evhtp_request_t *req, void *a) {
 }
 
 void res_agent_specific_client(evhtp_request_t *req, void *a) {
+        syslog(LOG_INFO, "res_agent_specific_client()\n"); 
     log_request(req, a);
     add_headers_out(req);
     ADD_DATE_HEADER("Date");

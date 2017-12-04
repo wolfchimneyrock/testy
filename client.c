@@ -35,6 +35,7 @@ struct _client {
     int           pipe; // pipe file descriptor
     int           ready;
     int           stopsig;
+    int           deleted;
     ev_t         *event;
     evbuf_t      *buffer;
     void         *req;
@@ -60,7 +61,6 @@ int clients_add(CLIENT *c) {
         result = client_count++;
         clients[result] = c;
         c->id = result;
-        
     pthread_mutex_unlock(&clients_mutex);
     
     return result;
@@ -68,12 +68,15 @@ int clients_add(CLIENT *c) {
 
 int client_stop(CLIENT *c) {
     if (c == NULL) return -1;
+    c->deleted = 1;
     syslog(LOG_INFO, "sending signal %d to pid %d", c->stopsig, c->pid);
-
+    event_del(c->event);
     int ret = kill(c->pid, c->stopsig);
     waitpid(c->pid, NULL, 0); 
     clients[c->id] = NULL;
+    event_free(c->event);
     //free(c);
+
     return ret;
 }
 
@@ -85,6 +88,7 @@ CLIENT *clients_get(int clientid) {
 }
 
 int read_client_pipe_lines(evbuf_t *out, CLIENT *c) {
+    syslog(LOG_INFO, "read_client_pipe_lines()\n");
     if (out == NULL || c == NULL) return -1;
     int result = -1;
     if (0 == evbuffer_add_buffer(out, c->buffer)) {
@@ -220,7 +224,7 @@ CLIENT *create_client(char *command, const char *ready_message, const char *stop
         CLIENT *c = malloc(sizeof(CLIENT));
         c->pipe   = p[0];  // fdopen(p[1-childdup], "r");
         c->pid    = child;
-
+        c->deleted = 0;
         c->buffer = evbuffer_new();
         evbuffer_enable_locking(c->buffer, NULL);
         
@@ -252,7 +256,8 @@ CLIENT *create_client(char *command, const char *ready_message, const char *stop
    
 void client_fifo_read(int fd, short event, void *arg) {
     CLIENT *c = (CLIENT *)arg;
-
+    if (c == NULL)  return;
+    if (c->deleted) return;
     int          count       = 0;
     int          total_read  = 0;
     do {
@@ -274,10 +279,13 @@ void client_fifo_read(int fd, short event, void *arg) {
             } while (!c->ready && size > 0); 
         }
         
+        //syslog(LOG_INFO, "client_fifo_read() %d\n", count);
+        
         if (count > 0) { 
             total_read += count;
         } 
     } while (count == PIPEBUF_SIZE);
+
     if (count < 0) {
         // error reading
         syslog(LOG_INFO, "    error reading from client");
@@ -296,6 +304,7 @@ int client_isready(CLIENT *c) {
 }
 
 int close_client(CLIENT *c) {
+    syslog(LOG_INFO, "close_client()\n");
    if (c == NULL) return -1; 
 
    int status;

@@ -17,18 +17,21 @@ Variables:
     
 
 Server:
-    Host:               "192.168.1.29"
+    Host:               "192.168.1.30"
     CmdlineTemplate:    "daap -X -t {ServerThreads} -y {BufferType} {FileCache}"
     ReadyMessage:       "*** SCANNED"
     StopSignal:         15
+    Timeout:            3600
 
 Clients:
     Scan:               yes
     SkipServers:        yes
-    CmdlineTemplate:    "daap-client -h 192.168.1.29 -c {SimulatedClients}"
+    CmdlineTemplate:    "daap-client -h 192.168.1.30 -c {SimulatedClients}"
     StopSignal:         15
+    Timeout:            120
 
 Test:
-    Duration: 60
+    Duration: 10
+    Tick:     1
 
 

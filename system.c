@@ -148,7 +148,7 @@ static void handle_signal(int sig, siginfo_t *si, void *context) {
         // child terminated
         LOGGER(LOG_INFO, "child pid terminated, cleaning up");
         CLIENT *c = get_client_by_pid(si->si_pid);
-        if (c) {
+        if (!client_isdeleted(c)) {
             client_stop(c);
         }
     }

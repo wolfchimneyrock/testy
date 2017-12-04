@@ -76,10 +76,16 @@ int clients_add(CLIENT *c) {
 
 int client_stop(CLIENT *c) {
     if (c == NULL) return -1;
+    int ret = kill(c->pid, 0);
+    if (ret == -1 && errno == ESRCH) {
+        syslog(LOG_INFO, "no such pid found.  Marking deleted.");
+        c->deleted = 1;
+        return -1;
+    }
     c->deleted = 1;
     syslog(LOG_INFO, "sending signal %d to pid %d", c->stopsig, c->pid);
     event_del(c->event);
-    int ret = kill(c->pid, c->stopsig);
+    ret = kill(c->pid, c->stopsig);
     waitpid(c->pid, NULL, 0); 
     clients[c->id] = NULL;
     event_free(c->event);
@@ -315,6 +321,11 @@ void client_respond_when_ready(CLIENT *c, void *req) {
 int client_isready(CLIENT *c) {
     if (c == NULL) return 0;
     return c->ready;
+}
+
+int client_isdeleted(CLIENT *c) {
+    if (c == NULL) return 1;
+    return c->deleted;
 }
 
 int close_client(CLIENT *c) {

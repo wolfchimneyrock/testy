@@ -152,7 +152,7 @@ static void handle_signal(int sig, siginfo_t *si, void *context) {
             client_stop(c);
         }
     }
-    if (sig == SIGKILL || sig == SIGTERM || sig == SIGSTOP || sig == SIGINT) {
+    if (sig == SIGKILL || sig == SIGTERM || sig == SIGSTOP || sig == SIGINT || sig == SIGSEGV) {
         LOGGER(LOG_INFO, "terminating...\n");
         // cancelling the signal thread will cause a graceful shutdown
         pthread_cancel(signal_pid);

@@ -195,7 +195,7 @@ CLIENT *create_client(char *command, const char *ready_message, const char *stop
     int childdup = STDERR_FILENO; // we want to read from pipe
 
     int child;
-    int stopsig;
+    int stopsig = 0;
 
     if ((child = fork()) == 0) {  
         // we are the child, try to execute
@@ -237,14 +237,20 @@ CLIENT *create_client(char *command, const char *ready_message, const char *stop
         } 
         c->messages_sent = 0;
         if (ready_message && *ready_message) {
+
+            syslog(LOG_INFO, "client waiting for ready message...");
             c->ready_message = strdup(ready_message);
             c->ready = 0;
         } else {
+
+            syslog(LOG_INFO, "client ready immediately");
             c->ready_message = NULL;
             c->ready = 1;
         }
-        stopsig = atoi(stop_signal);
+        if (stop_signal)
+            stopsig = atoi(stop_signal);
         if (stopsig > 0) {
+            syslog(LOG_INFO, "using stop signal %d.", stopsig);
             c->stopsig = stopsig;
         } else {
             syslog(LOG_INFO, "using default stop signal 9.");

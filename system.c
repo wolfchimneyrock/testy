@@ -15,7 +15,7 @@
 #include "config.h"
 
 #define SUPERUSER (uid_t)0
-
+int flag_daemonize = 0;
 static int pidfile_fd;
 static char pidfile_str[256];
 
@@ -23,9 +23,29 @@ volatile pthread_t main_pid, signal_pid,
     watcher_pid, scanner_pid, writer_pid; 
 
 void staylocal(config_t *conf, char **argv) {
+    int ret;
     // don't daemonize - but write pid file and enable logging to stdout
     snprintf(pidfile_str, 256, "/tmp/%u-testy.pid", conf->port);
-    
+   
+    pidfile_fd = open(pidfile_str, O_RDONLY);
+    if (pidfile_fd > 0) {
+	    // pidfile exists - check if process is running.
+	    // if no process running, delete pid file and keep going,
+	    // otherwise exit with failure.
+	char pid_str[16] = { 0 };
+	ret = read(pidfile_fd, &pid_str, 16);
+	close(pidfile_fd);
+	pid_t prior = atoi(pid_str);
+	ret = kill(prior, 0);
+	if (ret == -1 && errno == ESRCH) {
+		// no process - safe to delete pid and continue
+	    ret = unlink(pidfile_str);
+	} else {
+            perror("process already running.  Terminating.");
+	    exit(EXIT_FAILURE);
+	}
+    }
+
     pidfile_fd = open(pidfile_str, O_WRONLY | O_CREAT  | O_EXCL ,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH );
     if (pidfile_fd < 0) {
@@ -34,7 +54,7 @@ void staylocal(config_t *conf, char **argv) {
     }    
     char pid_str[10];
     snprintf(pid_str, 10, "%d", getpid()); 
-    int ret = write(pidfile_fd, pid_str, strlen(pid_str) + 1);
+    ret = write(pidfile_fd, pid_str, strlen(pid_str) + 1);
     openlog(NULL, LOG_PERROR, LOG_USER);
     
 }
@@ -122,9 +142,9 @@ void cleanup() {
 }
 
 static void handle_signal(int sig) {
-    syslog(LOG_INFO, "received signal %d - %s\n", sig, strsignal(sig));
+    LOGGER(LOG_INFO, "received signal %d - %s\n", sig, strsignal(sig));
     if (sig == SIGKILL || sig == SIGTERM || sig == SIGSTOP || sig == SIGINT) {
-        syslog(LOG_INFO, "terminating...\n");
+        LOGGER(LOG_INFO, "terminating...\n");
         // cancelling the signal thread will cause a graceful shutdown
         pthread_cancel(signal_pid);
     }
@@ -136,7 +156,7 @@ static void handle_signal(int sig) {
 static void signal_cleanup(void *arg) {
     // we are terminating because of a signal
     // inform the other threads to terminate.
-    syslog(LOG_INFO, "cancelling threads...\n");
+    LOGGER(LOG_INFO, "cancelling threads...\n");
 
     pthread_cancel(main_pid);
 

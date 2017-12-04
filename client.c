@@ -53,8 +53,8 @@ int clients_add(CLIENT *c) {
     if (client_count == CLIENT_BUFSIZE) return -1;
 
     int result;
-    syslog(LOG_INFO, "clients_add()\n");
-    syslog(LOG_INFO, "    pid: %d\n", c->pid);
+    LOGGER(LOG_INFO, "clients_add()\n");
+    LOGGER(LOG_INFO, "    pid: %d\n", c->pid);
    
     pthread_mutex_lock(&clients_mutex);
 
@@ -102,7 +102,7 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
     // if successful, it allocates and returns a CLIENT object
     // to cleanup the client object, run close_client(c)
 
-    syslog(LOG_INFO, "parse_client_post_body()\n");
+    LOGGER(LOG_INFO, "parse_client_post_body()\n");
     int res;
     int i;
     size_t cmdlen    = 0;
@@ -121,7 +121,7 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
     syslog(LOG_INFO, "body: %s", body);
     res = jsmn_parse(&p, body, body_len, tokens, 
             sizeof(tokens) / sizeof(tokens[0]));
-    syslog(LOG_INFO, "body contains %d JSON objects...", res);
+    LOGGER(LOG_INFO, "body contains %d JSON objects...", res);
     if (res < 0) {
         // error parsing JSON
         return NULL;
@@ -144,7 +144,7 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
             cmdtag = body + tokens[++i].start;
             cmdlen = (size_t)(tokens[i].end - tokens[i].start);
             cmdtag[cmdlen] = '\0';
-            syslog(LOG_INFO, "got Cmdline tag: '%s'", cmdtag);
+            LOGGER(LOG_INFO, "got Cmdline tag: '%s'", cmdtag);
         }
 
         else if (json_key_eq(body, &tokens[i], "ReadyMessage")) {
@@ -152,7 +152,7 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
             rdytag = body + tokens[++i].start;
             rdylen = (size_t)(tokens[i].end - tokens[i].start);
             rdytag[rdylen] = '\0';
-            syslog(LOG_INFO, "got ReadyMessage tag: '%s'", rdytag);
+            LOGGER(LOG_INFO, "got ReadyMessage tag: '%s'", rdytag);
         }
 
         else if (json_key_eq(body, &tokens[i], "Duration")) {
@@ -160,7 +160,7 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
             durtag = body + tokens[++i].start;
             durlen = (size_t)(tokens[i].end - tokens[i].start);
             durtag[durlen] = '\0';
-            syslog(LOG_INFO, "got Duration tag: '%s'", durtag);
+            LOGGER(LOG_INFO, "got Duration tag: '%s'", durtag);
         }
         
         else if (json_key_eq(body, &tokens[i], "StopSignal")) {
@@ -168,7 +168,7 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
             stoptag = body + tokens[++i].start;
             stoplen = (size_t)(tokens[i].end - tokens[i].start);
             stoptag[stoplen] = '\0';
-            syslog(LOG_INFO, "got StopSignal tag: '%s'", stoptag);
+            LOGGER(LOG_INFO, "got StopSignal tag: '%s'", durtag);
         }
 
     }
@@ -184,7 +184,7 @@ CLIENT * parse_client_post_body(char *body, size_t body_len, void *base) {
 
 CLIENT *create_client(char *command, const char *ready_message, const char *stop_signal, void *base) {
 // command is mutated by tokenize() to null-terminate tokens
-    syslog(LOG_INFO, "create_client()\n");
+    LOGGER(LOG_INFO, "create_client()\n");
     int p[2];
     int res = pipe2(p, O_NONBLOCK);
     if (res < 0) return NULL;
@@ -205,7 +205,7 @@ CLIENT *create_client(char *command, const char *ready_message, const char *stop
         if (execv(*list, list) == -1 &&
             execvp(*list, list) == -1) { 
             // execute failed, clean up
-                syslog(LOG_INFO, "failed to execute %s", *list);
+                LOGGER(LOG_INFO, "failed to execute %s", *list);
                 free(list);
                 return NULL;
         }
@@ -232,7 +232,7 @@ CLIENT *create_client(char *command, const char *ready_message, const char *stop
         c->event = event_new(base, c->pipe, EV_READ|EV_PERSIST,
                 client_fifo_read, c);
         if (c->event) {
-            syslog(LOG_INFO, "fifo event created.");
+            LOGGER(LOG_INFO, "fifo event created.");
             event_add(c->event, NULL);
         } 
         c->messages_sent = 0;
@@ -272,7 +272,7 @@ void client_fifo_read(int fd, short event, void *arg) {
                 char *found = strstr(line, c->ready_message);
                 if (found != NULL) {
                     c->ready = 1;
-                    syslog(LOG_INFO, "found ready message!");
+                    LOGGER(LOG_INFO, "found ready message!");
                     evhtp_send_reply(c->req, EVHTP_RES_CREATED);
                 } 
                 free(line);
@@ -288,7 +288,7 @@ void client_fifo_read(int fd, short event, void *arg) {
 
     if (count < 0) {
         // error reading
-        syslog(LOG_INFO, "    error reading from client");
+        LOGGER(LOG_INFO, "    error reading from client");
         
     }
 }

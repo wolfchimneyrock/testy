@@ -50,7 +50,7 @@ static int              client_count             = 0;
 
 CLIENT *get_client_by_pid(int pid) {
     for (int i = 0; i < client_count; i++) {
-        if (clients[i]->pid == pid)
+        if (clients[i] && clients[i]->pid == pid)
             return clients[i];
     }
     return NULL;

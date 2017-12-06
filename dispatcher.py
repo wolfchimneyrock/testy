@@ -114,6 +114,10 @@ if __name__ == "__main__":
     print "Clients: "
     print client_hosts
     
+    if len(client_hosts) == 0:
+        print "No clients found, aborting."
+        sys.exit()
+
     print "Iterating through {} variable permutations".format(len(var_perms))
 
     for perm in var_perms:

@@ -38,12 +38,13 @@ def hook_location(*hargs, **hkwargs):
 def hook_data(*hargs, **hkwargs):
     def client_data_hook(response, *args, **kwargs):
         if 'output' in hkwargs:
-            s = ""
-            if 'perm' in hkwargs:
-                s = ",".join(hkwargs['perm']) + ","
-            s = s + response.text()
-            print s;
-            hkwargs['output'].append(s)
+            for data in response.content.splitlines():
+                s = ""
+                if 'perm' in hkwargs:
+                    s = hkwargs['perm'] + ","
+                s = s + data
+                print s;
+                hkwargs['output'].append(s)
 
     return client_data_hook
 
@@ -72,7 +73,7 @@ if __name__ == "__main__":
         for k, v in config['Variables'].iteritems():
             if 'Values' in v:
                 if isinstance(v['Values'], dict):
-                    var_vals.append(v['Values'].values())
+                    var_vals.append(v['Values'].keys())
                     var_keys.append(k)
                 elif isinstance(v['Values'], list):
                     var_vals.append(v['Values'])
@@ -112,11 +113,20 @@ if __name__ == "__main__":
     print "Server:  " + server_host
     print "Clients: "
     print client_hosts
+    
+    print "Iterating through {} variable permutations".format(len(var_perms))
 
     for perm in var_perms:
-
+        p = {}
+        perm_str = ",".join((str(x) for x in perm.itervalues()))
+        for key, val in perm.iteritems():
+            if isinstance(config['Variables'][key]['Values'], dict):
+                p[key] = config['Variables'][key]['Values'][val]
+            else:
+                p[key] = val
+        print p
         server_body = {}
-        server_body["Cmdline"] = server_cmd.format(**perm)
+        server_body["Cmdline"] = server_cmd.format(**p)
         if 'ReadyMessage' in config['Server']: 
             server_body["ReadyMessage"]   = config['Server']['ReadyMessage']
         if 'StopSignal' in config['Server']:
@@ -144,10 +154,9 @@ if __name__ == "__main__":
             start_time = time.time()
             remaining = duration
             while remaining > 0:
-                print client_loc
                 time.sleep(tick)
                 tick_req = (grequests.get(h, 
-                    hooks={'response':[hook_data(output=client_data, perm=perm)]},
+                    hooks={'response':[hook_data(output=client_data, perm=perm_str)]},
                     timeout=120) for h in client_loc)
                 tick_res = grequests.map(tick_req)
                 remaining = duration - time.time() + start_time

@@ -17,7 +17,7 @@
 
 static const int  current_rev = 2;
 #define API_V1_STR "/v1"
-#define CLIENT_STR "/clients"
+#define CLIENT_STR "/client"
 #define REG_NUM "/([0-9]+)"
 #define REG_UUID "/([0-9a-f]{32})"
 #define BODYSIZE 1024
@@ -242,11 +242,11 @@ void register_callbacks(evhtp_t *evhtp) {
                    res_agent_specific_client, 
                    "specific client request");
 
-    evhtp_set_cb(evhtp, 
-                   API_V1_STR CLIENT_STR,
-                   res_agent_clients, 
-                   "general clients request");
 
 // static callbacks can be registered in any order
+    evhtp_set_cb(evhtp, 
+                   API_V1_STR CLIENT_STR "s",
+                   res_agent_clients, 
+                   "general clients request");
 
 }

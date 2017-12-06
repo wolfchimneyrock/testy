@@ -4,7 +4,7 @@ import sys, socket, requests, grequests, yaml, json, itertools, time
 from optparse import OptionParser
 
 PORT = 8111
-API_STRING = '/v1/clients'
+API_STRING = '/v1/client'
 
 def get_my_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -137,7 +137,7 @@ if __name__ == "__main__":
             server_body['StopSignal'] = config['Server']['StopSignal']
 
         # server GET should be synchronous, since we require it to be done before starting clients
-        server_response = requests.post(make_request_host(server_host, API_STRING), json=server_body, timeout=3600)
+        server_response = requests.post(make_request_host(server_host, API_STRING + 's'), json=server_body, timeout=3600)
         if server_response.status_code == 201 and 'Location' in server_response.headers:
         # now a server instance is running, we start clients.  
             print "got successful server instance.  starting clients."
@@ -147,7 +147,7 @@ if __name__ == "__main__":
             client_body['Cmdline'] = client_cmd.format(**perm)
             client_loc = []
             client_data = []
-            req = (grequests.post(make_request_host(h, API_STRING), 
+            req = (grequests.post(make_request_host(h, API_STRING + 's'), 
                 hooks={'response':[hook_location(location=client_loc, host=h)]},
                 json=client_body, 
                 timeout=120) for h in client_hosts)
@@ -166,12 +166,13 @@ if __name__ == "__main__":
                 remaining = duration - time.time() + start_time
             
             # clients are done, delete them
-            del_req = (grequests.delete(h) for h in client_loc)
+            print "deleting clients..."
+            del_req = (grequests.delete(h, timeout=120) for h in client_loc)
             del_res = grequests.map(del_req)
 
             # after clients are done, we have to shutdown server before
             # going on to the next permutation
-
+            print "deleting server instance..."
             delete_server_response = requests.delete(make_request_host(server_host, server_response.headers['Location']), timeout=3600)
             if delete_server_response.status_code != 200:
                 print "Error deleting server instance.  Quitting"

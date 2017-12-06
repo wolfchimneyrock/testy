@@ -9,16 +9,15 @@ Variables:
             LockBatch:  'lock'
             LfSerial:   'lf -S'
             LfBatch:    'lf'
-            Mc:         'mc'
-    FileCache:
-        Values:
-            UseCache:   ''
-            NoCache:    '-C -1'
+#    FileCache:
+#        Values:
+#            UseCache:   ''
+#            NoCache:    '-C -1'
     
 
 Server:
     Host:               "192.168.1.30"
-    CmdlineTemplate:    "daap -X -t {ServerThreads} -y {BufferType} {FileCache}"
+    CmdlineTemplate:    "daap -X -t {ServerThreads} -y {BufferType}"
     ReadyMessage:       "*** SCANNED"
     StopSignal:         15
     Timeout:            3600
@@ -26,7 +25,8 @@ Server:
 Clients:
     Scan:               yes
     SkipServers:        yes
-    CmdlineTemplate:    "daap-client -h 192.168.1.30 -c {SimulatedClients}"
+    CmdlineTemplate:    "daap-client -v -h 192.168.1.30 -c {SimulatedClients}"
+    ColumnHeader:       "tick,elapsed,active,updates,acc,rate,latency"
     StopSignal:         15
     Timeout:            120
 

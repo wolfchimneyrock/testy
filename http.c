@@ -161,7 +161,7 @@ void res_agent_clients(evhtp_request_t *req, void *a) {
             // we respond with a Location header
             // and 201 CREATED code
             char location[BODYSIZE];
-            snprintf(location, BODYSIZE, API_V1_STR CLIENT_STR "/%d", clientid);
+            snprintf(location, BODYSIZE, "/%d", clientid);
             evhtp_headers_add_header(req->headers_out,
                   evhtp_header_new("Location", location, 0, 0));
             if (client_isready(c))
@@ -181,8 +181,9 @@ void res_agent_specific_client(evhtp_request_t *req, void *a) {
     ADD_DATE_HEADER("Date");
     evthr_t *thread = get_request_thr(req);
     app     *aux    = (app *)evthr_get_aux(thread);
-   
-
+    if (strcmp(req->uri->path->file, "clients") == 0) {
+	    res_agent_clients(req, a);
+    } else {
     int id = atoi(req->uri->path->file);
     // check if specific clientid exists first
     CLIENT *c = clients_get(id);
@@ -229,24 +230,28 @@ void res_agent_specific_client(evhtp_request_t *req, void *a) {
                 evhtp_send_reply(req, EVHTP_RES_NOTFOUND);
             break;
 
-        
+    }
     }
 }
 
 void register_callbacks(evhtp_t *evhtp) {
     LOGGER(LOG_INFO, "registering callbacks...");
-
-// regex callbacks must be registered in correct order: most specific first
-    evhtp_set_regex_cb(evhtp, 
-                   API_V1_STR CLIENT_STR REG_NUM,
-                   res_agent_specific_client, 
-                   "specific client request");
-
-
-// static callbacks can be registered in any order
     evhtp_set_cb(evhtp, 
                    API_V1_STR CLIENT_STR "s",
                    res_agent_clients, 
                    "general clients request");
+
+// regex callbacks must be registered in correct order: most specific first
+    evhtp_set_regex_cb(evhtp, 
+                  API_V1_STR CLIENT_STR REG_NUM,
+                   res_agent_specific_client, 
+                   "specific client request");
+
+    evhtp_set_cb(evhtp, 
+                  "/",
+                   res_agent_specific_client, 
+                   "specific client request");
+
+// static callbacks can be registered in any order
 
 }
